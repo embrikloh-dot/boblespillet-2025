@@ -1,130 +1,132 @@
 import tkinter as tk
 import time
-from random import randint, random, uniform
+from random import randint
 from ring import Ring
+from hjelpefunksjoner import (
+    handleKeyPress,
+    processKeypress,
+    sjekkTeleportering,
+    tegnBall,
+    slettBall,
+    handle_avslutt,
+)
+
+# ----------------- Vindu -----------------
 
 window = tk.Tk()
-window.lift()
 window.title("Boblespillet")
 window.focus_force()
+
 bredde = 800
 hoyde = 700
-canvas_height = hoyde-150
+canvas_height = hoyde - 150
 canvas_width = bredde
-window.minsize(bredde,hoyde)
-vindu_bakgrunn = "#FFFFFF"
-tekst_bakgrunn = "#ffffff"
-bunn_bakgrunn = "#3e3e3e"
-vann_bakgrunn = "#292b52"
-window.configure(background=vindu_bakgrunn)
-window.pack_propagate(False) # Skrur av at children kan endre størrelsen til window.
 
+window.minsize(bredde, hoyde)
+window.configure(background="#FFFFFF")
+window.pack_propagate(False)
 
-# Setter inn en ramme (Frame)
-topp = tk.Frame(window)
-topp.configure(
-    height=50,
-    width=bredde*0.75,
-    background=vindu_bakgrunn,
-)
-topp.pack_propagate(False) # Skrur av at children kan endre rammen.
+# ----------------- Topp -----------------
+
+topp = tk.Frame(window, height=50, width=bredde * 0.75, background="#FFFFFF")
+topp.pack_propagate(False)
 topp.pack()
 
-# Lager noe tekst med Label
-overskrift = tk.Label(topp)
-overskrift["text"] = "Spis mindre bobler, pass deg for de store!"
-overskrift.configure(
-    font = ("Aptos", 20),
-    foreground="black",
-    background=tekst_bakgrunn
+overskrift = tk.Label(
+    topp,
+    text="Spis mindre bobler, pass deg for de store!",
+    font=("Aptos", 20),
+    background="#FFFFFF",
 )
 overskrift.pack()
 
-
-# Lager et mellomrom
-mellomrom = tk.Label()
-mellomrom.configure(
-    height=1,
-    width=1,
-    bg=vindu_bakgrunn
-)
-mellomrom.pack()
-
-
-# Lager utskrift der resultatet skal havne
-utskrift = tk.Label()
-utskrift["text"] = "Poeng: 0"
-utskrift.configure(
-    font = ("Aptos", 14),
-    foreground="black",
-    background=tekst_bakgrunn
+utskrift = tk.Label(
+    window,
+    text="Poeng: 0",
+    font=("Aptos", 14),
+    background="#FFFFFF",
 )
 utskrift.pack()
 
+# ----------------- Canvas -----------------
 
-# Lager et canvas der vi kan tegne strekkodene som sorte og smale rektangler
-canvas = tk.Canvas(window)
-canvas.configure(
+canvas = tk.Canvas(
+    window,
     width=bredde,
     height=canvas_height,
-    background=vann_bakgrunn,
+    background="#292b52",
 )
 canvas.pack(expand=True)
 
+# ----------------- Bunn -----------------
 
-# Lager en ramme nederst til avsluttknappen.
-bunn = tk.Frame(window)
-bunn.configure(
-    width=bredde,
-    height=50,
-    background=bunn_bakgrunn,
-)
-bunn.pack()
+bunn = tk.Frame(window, width=bredde, height=50, background="#3e3e3e")
 bunn.pack_propagate(False)
+bunn.pack()
 
-def handle_avslutt():
-    global isRunning
-    isRunning = False
-    window.update()
-    window.destroy()
-
-# Knapp
-avslutt = tk.Button(bunn)
-avslutt.configure(
-    text = "Avslutt",
-    command=lambda: handle_avslutt()
+avslutt = tk.Button(
+    bunn,text="Avslutt",
+    command=lambda: handle_avslutt(window, state),
 )
 avslutt.pack()
 
+# ----------------- Spilltilstand -----------------
 
-# -------------- Spillogikk ligger under her --------------
+state = {
+    "dx": 0,
+    "dy": 0,
+    "x_step": 6,
+    "y_step": 6,
+    "isRunning": True,
+}
 
-xmin = 0
-xmax = canvas_width
-ymin = 0
-ymax = canvas_height
+# Startposisjon for ball
+R = 20
+xpos = canvas_width // 2
+ypos = canvas_height // 2
 
-# Lager en referanse til canvas inni Ring-klassen.
+# Tastaturbinding
+window.bind("<KeyPress>", lambda e: handleKeyPress(e, state))
+
+# Hvis Ring bruker canvas
 Ring.canvas = canvas
 
-bobler = []
-teller = 0
-R_MIN = 5
-R_MAX = 20
+# ----------------- Spill-loop -----------------
 
+dt = 1 / 30
+last_time = time.time()
 
-isRunning = True
-lastTime = time.time()
-start_time = time.time()
-slette_indexer = []
-dt = 1/30
+def game_loop():
+    global xpos, ypos
 
-while isRunning:
-    if time.time() - lastTime >= dt:
+    if not state["isRunning"]:
+        return
 
-        lastTime = time.time()
-    window.update()
+    now = time.time()
+    if now - last_time >= dt:
+        slettBall(canvas)
 
+        xpos += state["dx"]
+        ypos += state["dy"]
 
-# Kjører vinduet. Må være nederst i koden.
+        dx, dy, xpos, ypos = sjekkTeleportering(
+            xpos,
+            ypos,
+            state["dx"],
+            state["dy"],
+            R,
+            canvas_width,
+            canvas_height,
+        )
+
+        state["dx"] = dx
+        state["dy"] = dy
+
+        tegnBall(canvas, xpos, ypos, R)
+
+    window.after(int(dt * 1000), game_loop)
+
+# ----------------- Start -----------------
+
+game_loop()
 window.mainloop()
